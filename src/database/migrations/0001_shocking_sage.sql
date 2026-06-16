@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `idx_users_phone_number_unique` ON `users` ("phone_number" COLLATE NOCASE);

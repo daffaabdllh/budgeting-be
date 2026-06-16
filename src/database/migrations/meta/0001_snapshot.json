@@ -1,0 +1,93 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "83853bab-9ece-4871-b5d1-572e82e897f8",
+  "prevId": "ba37ed07-8a87-487f-8ff3-42aedda0aa2a",
+  "tables": {
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_users_email_unique": {
+          "name": "idx_users_email_unique",
+          "columns": [
+            "\"email\" COLLATE NOCASE"
+          ],
+          "isUnique": true
+        },
+        "idx_users_phone_number_unique": {
+          "name": "idx_users_phone_number_unique",
+          "columns": [
+            "\"phone_number\" COLLATE NOCASE"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "idx_users_email_unique": {
+        "columns": {
+          "\"email\" COLLATE NOCASE": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_users_phone_number_unique": {
+        "columns": {
+          "\"phone_number\" COLLATE NOCASE": {
+            "isExpression": true
+          }
+        }
+      }
+    }
+  }
+}

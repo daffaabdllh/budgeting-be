@@ -1,0 +1,32 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "budgeting-be",
+	"main": "src/app.ts",
+	"compatibility_date": "2026-06-16",
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "budgeting-db",
+			"database_id": "5e3a9c7b-5c21-412d-bcb1-d40857abbc85",
+			"migrations_dir": "src/database/migrations"
+		}
+	],
+	"vars": {
+		"BASE_PATH": "/api/budgeting",
+		"ACCESS_TOKEN_COOKIE": "budgeting-access",
+		"ACCESS_TOKEN_TTL": 60,
+		"REFRESH_TOKEN_COOKIE": "budgeting-refresh",
+		"AUTH_COOKIE_SAMESITE": "Lax",
+		"AUTH_COOKIE_SECURE": "false",
+		"AUTH_COOKIE_DOMAIN": "",
+		"RESEND_API_KEY": "re_placeholder",
+		"FRONTEND_URL": "http://localhost:3000"
+	},
+}

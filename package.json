@@ -1,0 +1,31 @@
+{
+  "name": "budgeting-be",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --port 8000",
+    "db:gen-seed": "f() { tsx src/features/\"$1\".seed.ts; }; f",
+    "db:seed:local": "f() { wrangler d1 execute DB --local --file=./src/database/seeder/\"$1\".seed.sql; }; f",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "start": "wrangler dev",
+    "test": "vitest",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.4",
+    "@types/node": "^25.9.3",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.5.2",
+    "vitest": "~3.2.0",
+    "wrangler": "^4.100.0"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.8.0",
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.25",
+    "zod": "^4.4.3"
+  }
+}

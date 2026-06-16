@@ -1,0 +1,1 @@
+CREATE INDEX `idx_password_resets_email` ON `password_resets` (`email`);

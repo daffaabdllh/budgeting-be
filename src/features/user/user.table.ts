@@ -9,7 +9,10 @@ export const users = sqliteTable("users", {
     name: text("name").notNull(),
     email: text("email").notNull(),
     phone_number: text("phone_number").notNull(),
-    password: text("password").notNull()
+    password: text("password").notNull(),
+    created_at: text("created_at")
+        .notNull()
+        .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 }, (table) => {
     return {
         idxUsersEmailUnique: uniqueIndex("idx_users_email_unique").on(sql`${table.email} COLLATE NOCASE`),

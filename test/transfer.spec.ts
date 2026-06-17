@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db as connectDb } from "../src/config/db";
 import { wallets } from "../src/features/wallet/wallet.table";
 import { transactions } from "../src/features/transaction/transaction.table";
-import { createTransfer, deleteTransaction, updateTransaction } from "../src/features/transaction/transaction.service";
+import { createTransfer, deleteTransaction, updateTransaction, getAllTransactions } from "../src/features/transaction/transaction.service";
 
 import sql0 from "../src/database/migrations/0000_hard_outlaw_kid.sql?raw";
 import sql1 from "../src/database/migrations/0001_shocking_sage.sql?raw";
@@ -162,6 +162,38 @@ describe("Wallet Transfer Unit Tests", () => {
         const inTxResult = await db.select().from(transactions).where(eq(transactions.id, result.inTx.id)).limit(1);
         expect(inTxResult[0].description).toBe("Uber ride");
         expect(inTxResult[0].transaction_date).toBe("2026-06-18");
+    });
+
+    it("should return transactions with joined wallet, budget, and linked_transaction objects", async () => {
+        const transfer = await createTransfer(db, "user1", {
+            source_wallet_id: "w1",
+            destination_wallet_id: "w2",
+            amount: 3000,
+            description: "Gas money",
+            transaction_date: "2026-06-17"
+        });
+
+        const { data } = await getAllTransactions(db, "user1", {});
+        expect(data).toHaveLength(2);
+
+        const outTx = data.find((t: any) => t.type === "OUT");
+        expect(outTx).toBeDefined();
+        expect(outTx.wallet).toEqual({ id: "w1", name: "Wallet A" });
+        expect(outTx.budget).toBeNull();
+        expect(outTx.linked_transaction).toEqual({
+            id: transfer.inTx.id,
+            wallet_id: "w2",
+            wallet_name: "Wallet B"
+        });
+
+        const inTx = data.find((t: any) => t.type === "IN");
+        expect(inTx).toBeDefined();
+        expect(inTx.wallet).toEqual({ id: "w2", name: "Wallet B" });
+        expect(inTx.linked_transaction).toEqual({
+            id: transfer.outTx.id,
+            wallet_id: "w1",
+            wallet_name: "Wallet A"
+        });
     });
 });
 

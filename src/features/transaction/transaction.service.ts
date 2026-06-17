@@ -6,6 +6,10 @@ import { transactions } from "./transaction.table";
 import { wallets } from "../wallet/wallet.table";
 import { budgets } from "../budget/budget.table";
 import { and, eq, inArray, like } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
+
+const linkedTransactions = alias(transactions, "linked_transactions");
+const linkedWallets = alias(wallets, "linked_wallets");
 
 const adjustWalletBalance = async (db: DrizzleD1, user_id: string, wallet_id: string, amountChange: number) => {
     const result = await db.select()
@@ -83,8 +87,39 @@ export const getAllTransactions = async (
         { page: options.page, limit: options.limit },
         async (currentIds) => {
             return await db
-                .select()
+                .select({
+                    id: transactions.id,
+                    user_id: transactions.user_id,
+                    wallet_id: transactions.wallet_id,
+                    budget_id: transactions.budget_id,
+                    type: transactions.type,
+                    description: transactions.description,
+                    amount: transactions.amount,
+                    transaction_date: transactions.transaction_date,
+                    is_deleted: transactions.is_deleted,
+                    created_at: transactions.created_at,
+                    updated_at: transactions.updated_at,
+                    deleted_at: transactions.deleted_at,
+                    linked_transaction_id: transactions.linked_transaction_id,
+                    wallet: {
+                        id: wallets.id,
+                        name: wallets.name
+                    },
+                    budget: {
+                        id: budgets.id,
+                        category: budgets.category
+                    },
+                    linked_transaction: {
+                        id: linkedTransactions.id,
+                        wallet_id: linkedTransactions.wallet_id,
+                        wallet_name: linkedWallets.name
+                    }
+                })
                 .from(transactions)
+                .innerJoin(wallets, eq(transactions.wallet_id, wallets.id))
+                .leftJoin(budgets, eq(transactions.budget_id, budgets.id))
+                .leftJoin(linkedTransactions, eq(transactions.linked_transaction_id, linkedTransactions.id))
+                .leftJoin(linkedWallets, eq(linkedTransactions.wallet_id, linkedWallets.id))
                 .where(inArray(transactions.id, currentIds))
         }
     );

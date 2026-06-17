@@ -1,0 +1,2 @@
+ALTER TABLE `recurring_reminders` ADD `last_notified_month_year` text;--> statement-breakpoint
+CREATE INDEX `idx_recurring_reminders_last_notified` ON `recurring_reminders` (`last_notified_month_year`);

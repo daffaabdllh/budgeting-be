@@ -5,7 +5,7 @@ import { apiOnError } from "./middleware/api/api.onError";
 import { apiNotFound } from "./middleware/api/api.notFound";
 import { router } from "./router";
 import { cors } from "hono/cors";
-import { processRecurringReminders } from "./features/recurring-reminder/cron.service";
+import { processRecurringReminders } from "./features/recurring-reminder/recurring-reminder.cron";
 
 const app = new Hono<AppEnv>()
 	.use("*", cors({

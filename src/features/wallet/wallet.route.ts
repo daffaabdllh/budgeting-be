@@ -26,13 +26,15 @@ export const walletRoutes = new Hono<AppEnv>()
     .put("/wallets/:id", zValidator("json", walletSchema), async (c) => {
         const body = c.req.valid("json")
         const wallet_id = c.req.param("id")
-
-        const result = await updateWallet(db(c.env.DB), wallet_id, body)
+        const { id: user_id } = c.get("user")
+ 
+        const result = await updateWallet(db(c.env.DB), user_id, wallet_id, body)
         return c.api.success(result, "Success update wallet.", 200);
     })
     .delete("/wallets/:id", async (c) => {
         const wallet_id = c.req.param("id")
-
-        await deleteWallet(db(c.env.DB), wallet_id)
+        const { id: user_id } = c.get("user")
+ 
+        await deleteWallet(db(c.env.DB), user_id, wallet_id)
         return c.body(null, 204)
     })

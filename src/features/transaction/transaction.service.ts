@@ -5,25 +5,17 @@ import { TransactionInputType, TransferInputType } from "./transaction.schema";
 import { transactions } from "./transaction.table";
 import { wallets } from "../wallet/wallet.table";
 import { budgets } from "../budget/budget.table";
-import { and, eq, inArray, like, isNull, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, like, isNull, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 const linkedTransactions = alias(transactions, "linked_transactions");
 const linkedWallets = alias(wallets, "linked_wallets");
 
-const adjustWalletBalance = async (db: DrizzleD1, user_id: string, wallet_id: string, amountChange: number) => {
-    const result = await db.select()
-        .from(wallets)
-        .where(and(eq(wallets.id, wallet_id), eq(wallets.user_id, user_id), eq(wallets.is_deleted, false)))
-        .limit(1);
-    const wallet = result[0];
-    if (!wallet) throw new HTTPException(404, { message: "Wallet not found." });
-
-    const currentBalance = Number(wallet.balance) || 0;
-    const newBalance = currentBalance + amountChange;
-
+const adjustWalletBalance = async (db: DrizzleD1, wallet_id: string, amountChange: number) => {
     await db.update(wallets)
-        .set({ balance: newBalance.toString() })
+        .set({
+            balance: sql`CAST(${wallets.balance} AS REAL) + ${amountChange}`
+        })
         .where(eq(wallets.id, wallet_id));
 };
 
@@ -35,6 +27,14 @@ export const createTransaction = async (db: DrizzleD1, user_id: string, data: Tr
         .limit(1);
     const wallet = walletResult[0];
     if (!wallet) throw new HTTPException(404, { message: "Wallet not found." });
+
+    // 1.5. If type is OUT, verify sufficient balance
+    if (data.type === "OUT") {
+        const walletBalance = Number(wallet.balance) || 0;
+        if (walletBalance < data.amount) {
+            throw new HTTPException(400, { message: "Insufficient balance in wallet." });
+        }
+    }
 
     // 2. If budget_id is provided, verify budget exists & belongs to user
     if (data.budget_id) {
@@ -52,7 +52,7 @@ export const createTransaction = async (db: DrizzleD1, user_id: string, data: Tr
 
     // 4. Update wallet balance
     const amountChange = data.type === "IN" ? data.amount : -data.amount;
-    await adjustWalletBalance(db, user_id, data.wallet_id, amountChange);
+    await adjustWalletBalance(db, data.wallet_id, amountChange);
 
     return result;
 };
@@ -136,20 +136,23 @@ export const getAllTransactions = async (
 };
 
 export const createTransfer = async (db: DrizzleD1, user_id: string, data: TransferInputType) => {
-    // 1. Verify source wallet exists & belongs to user
-    const sourceWalletResult = await db.select()
-        .from(wallets)
-        .where(and(eq(wallets.id, data.source_wallet_id), eq(wallets.user_id, user_id), eq(wallets.is_deleted, false)))
-        .limit(1);
-    const sourceWallet = sourceWalletResult[0];
-    if (!sourceWallet) throw new HTTPException(404, { message: "Source wallet not found." });
+    if (data.source_wallet_id === data.destination_wallet_id) {
+        throw new HTTPException(400, { message: "Source wallet and destination wallet must be different." });
+    }
 
-    // 2. Verify destination wallet exists & belongs to user
-    const destWalletResult = await db.select()
+    // 1. Verify both wallets exist & belong to user in a single query
+    const walletResults = await db.select()
         .from(wallets)
-        .where(and(eq(wallets.id, data.destination_wallet_id), eq(wallets.user_id, user_id), eq(wallets.is_deleted, false)))
-        .limit(1);
-    const destWallet = destWalletResult[0];
+        .where(and(
+            inArray(wallets.id, [data.source_wallet_id, data.destination_wallet_id]),
+            eq(wallets.user_id, user_id),
+            eq(wallets.is_deleted, false)
+        ));
+
+    const sourceWallet = walletResults.find(w => w.id === data.source_wallet_id);
+    const destWallet = walletResults.find(w => w.id === data.destination_wallet_id);
+
+    if (!sourceWallet) throw new HTTPException(404, { message: "Source wallet not found." });
     if (!destWallet) throw new HTTPException(404, { message: "Destination wallet not found." });
 
     // 3. Verify sufficient balance in source wallet
@@ -167,7 +170,7 @@ export const createTransfer = async (db: DrizzleD1, user_id: string, data: Trans
         user_id,
         wallet_id: data.source_wallet_id,
         type: "OUT",
-        description: `${data.description} (Transfer to ${destWallet.name})`,
+        description: "Transfer of Funds",
         amount: data.amount,
         transaction_date: data.transaction_date,
         linked_transaction_id: inTxId
@@ -179,7 +182,7 @@ export const createTransfer = async (db: DrizzleD1, user_id: string, data: Trans
         user_id,
         wallet_id: data.destination_wallet_id,
         type: "IN",
-        description: `${data.description} (Transfer from ${sourceWallet.name})`,
+        description: "Transfer of Funds",
         amount: data.amount,
         transaction_date: data.transaction_date,
         linked_transaction_id: outTxId
@@ -190,8 +193,8 @@ export const createTransfer = async (db: DrizzleD1, user_id: string, data: Trans
     }
 
     // 6. Adjust balances on both wallets
-    await adjustWalletBalance(db, user_id, data.source_wallet_id, -data.amount);
-    await adjustWalletBalance(db, user_id, data.destination_wallet_id, data.amount);
+    await adjustWalletBalance(db, data.source_wallet_id, -data.amount);
+    await adjustWalletBalance(db, data.destination_wallet_id, data.amount);
 
     return { outTx, inTx };
 };
@@ -206,13 +209,16 @@ export const updateTransaction = async (db: DrizzleD1, user_id: string, transact
     if (!oldTx) throw new HTTPException(404, { message: "Transaction not found." });
 
     if (oldTx.linked_transaction_id) {
-        if (oldTx.amount !== data.amount || oldTx.wallet_id !== data.wallet_id) {
-            throw new HTTPException(400, { message: "Cannot modify amount or wallet of a transfer transaction. Please delete and recreate the transfer." });
+        if (oldTx.amount !== data.amount || oldTx.wallet_id !== data.wallet_id || oldTx.type !== data.type) {
+            throw new HTTPException(400, { message: "Cannot modify amount, wallet, or type of a transfer transaction. Please delete and recreate the transfer." });
+        }
+        if (data.budget_id !== null) {
+            throw new HTTPException(400, { message: "Transfer transactions cannot be assigned to a budget category." });
         }
         // Also update description & date on the linked transaction
         await db.update(transactions)
             .set({
-                description: data.description,
+                description: "Transfer of Funds",
                 transaction_date: data.transaction_date,
                 updated_at: new Date().toISOString()
             })
@@ -237,6 +243,21 @@ export const updateTransaction = async (db: DrizzleD1, user_id: string, transact
         if (!budget) throw new HTTPException(404, { message: "Budget category not found." });
     }
 
+    // 3.5. Verify sufficient balance for OUT transaction
+    if (data.type === "OUT") {
+        const walletBalance = Number(wallet.balance) || 0;
+        if (oldTx.wallet_id === data.wallet_id) {
+            const totalChange = (oldTx.type === "IN" ? -oldTx.amount : oldTx.amount) - data.amount;
+            if (walletBalance + totalChange < 0) {
+                throw new HTTPException(400, { message: "Insufficient balance in wallet." });
+            }
+        } else {
+            if (walletBalance - data.amount < 0) {
+                throw new HTTPException(400, { message: "Insufficient balance in new wallet." });
+            }
+        }
+    }
+
     // 4. Revert old transaction balance changes
     const oldRevertAmount = oldTx.type === "IN" ? -oldTx.amount : oldTx.amount;
     // Apply new transaction balance changes
@@ -246,16 +267,19 @@ export const updateTransaction = async (db: DrizzleD1, user_id: string, transact
         // Same wallet: total change is oldRevertAmount + newAmountChange
         const totalChange = oldRevertAmount + newAmountChange;
         if (totalChange !== 0) {
-            await adjustWalletBalance(db, user_id, data.wallet_id, totalChange);
+            await adjustWalletBalance(db, data.wallet_id, totalChange);
         }
     } else {
         // Different wallets: revert old wallet, apply to new wallet
-        await adjustWalletBalance(db, user_id, oldTx.wallet_id, oldRevertAmount);
-        await adjustWalletBalance(db, user_id, data.wallet_id, newAmountChange);
+        await adjustWalletBalance(db, oldTx.wallet_id, oldRevertAmount);
+        await adjustWalletBalance(db, data.wallet_id, newAmountChange);
     }
 
     // 5. Update transaction record
-    const result = await updateRecord(db, transactions, eq(transactions.id, transaction_id), data);
+    const result = await updateRecord(db, transactions, eq(transactions.id, transaction_id), {
+        ...data,
+        description: oldTx.linked_transaction_id ? "Transfer of Funds" : data.description
+    });
     if (!result) throw new HTTPException(400, { message: "Failed to update transaction." });
 
     return result;
@@ -272,7 +296,7 @@ export const deleteTransaction = async (db: DrizzleD1, user_id: string, transact
 
     // 2. Revert wallet balance changes
     const oldRevertAmount = oldTx.type === "IN" ? -oldTx.amount : oldTx.amount;
-    await adjustWalletBalance(db, user_id, oldTx.wallet_id, oldRevertAmount);
+    await adjustWalletBalance(db, oldTx.wallet_id, oldRevertAmount);
 
     // 3. Soft delete transaction record
     const result = await deleteRecord(db, transactions, and(eq(transactions.id, transaction_id), eq(transactions.is_deleted, false))!);
@@ -287,7 +311,7 @@ export const deleteTransaction = async (db: DrizzleD1, user_id: string, transact
         const linkedTx = linkedTxResult[0];
         if (linkedTx) {
             const linkedRevertAmount = linkedTx.type === "IN" ? -linkedTx.amount : linkedTx.amount;
-            await adjustWalletBalance(db, user_id, linkedTx.wallet_id, linkedRevertAmount);
+            await adjustWalletBalance(db, linkedTx.wallet_id, linkedRevertAmount);
             await deleteRecord(db, transactions, eq(transactions.id, linkedTx.id));
         }
     }

@@ -26,7 +26,8 @@ export const transactions = sqliteTable("transactions", {
         idxTransactionWalletId: index("idx_transaction_wallet_id").on(table.wallet_id),
         idxTransactionBudgetId: index("idx_transaction_budget_id").on(table.budget_id),
         idxTransactionDate: index("idx_transaction_date").on(table.transaction_date),
-        idxTransactionLinkedId: index("idx_transaction_linked_id").on(table.linked_transaction_id)
+        idxTransactionLinkedId: index("idx_transaction_linked_id").on(table.linked_transaction_id),
+        idxTransactionUserIsDeletedDate: index("idx_transaction_user_is_deleted_date").on(table.user_id, table.is_deleted, table.transaction_date)
     }
 });
 

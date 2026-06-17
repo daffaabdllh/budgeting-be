@@ -1,0 +1,1 @@
+CREATE INDEX `idx_transaction_user_is_deleted_date` ON `transactions` (`user_id`,`is_deleted`,`transaction_date`);

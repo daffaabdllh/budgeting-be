@@ -21,14 +21,23 @@ export const getAllWallets = async (db: DrizzleD1, user_id: string) => {
     return result
 }
 
-export const updateWallet = async (db: DrizzleD1, wallet_id: string, data: WalletInputType) => {
-    const result = await updateRecord(db, wallets, eq(wallets.id, wallet_id), data)
-    if (!result) throw new HTTPException(400, { message: "Failed update wallet." })
+export const updateWallet = async (db: DrizzleD1, user_id: string, wallet_id: string, data: WalletInputType) => {
+    const result = await updateRecord(
+        db,
+        wallets,
+        and(eq(wallets.id, wallet_id), eq(wallets.user_id, user_id), eq(wallets.is_deleted, false))!,
+        data
+    );
+    if (!result) throw new HTTPException(404, { message: "Wallet not found or access denied." });
 
-    return result
-}
+    return result;
+};
 
-export const deleteWallet = async (db: DrizzleD1, wallet_id: string) => {
-    const result = await deleteRecord(db, wallets, and(eq(wallets.id, wallet_id), eq(wallets.is_deleted, false))!)
-    if (!result) throw new HTTPException(400, { message: "Failed delete wallet." })
-}
+export const deleteWallet = async (db: DrizzleD1, user_id: string, wallet_id: string) => {
+    const result = await deleteRecord(
+        db,
+        wallets,
+        and(eq(wallets.id, wallet_id), eq(wallets.user_id, user_id), eq(wallets.is_deleted, false))!
+    );
+    if (!result) throw new HTTPException(404, { message: "Wallet not found or access denied." });
+};

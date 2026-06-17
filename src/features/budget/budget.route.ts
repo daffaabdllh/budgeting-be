@@ -35,16 +35,18 @@ export const budgetRoutes = new Hono<AppEnv>()
     })
     .put("/budgets/:id", zValidator("json", budgetSchema), async (c) => {
         const body = c.req.valid("json")
-        const { id } = c.req.param()
+        const budget_id = c.req.param("id")
+        const { id: user_id } = c.get("user")
 
-        const result = await updateBudget(db(c.env.DB), id, body)
+        const result = await updateBudget(db(c.env.DB), user_id, budget_id, body)
 
         return c.api.success(result, "Success update budget.", 200)
     })
     .delete("/budgets/:id", async (c) => {
-        const { id } = c.req.param()
+        const budget_id = c.req.param("id")
+        const { id: user_id } = c.get("user")
 
-        await deleteBudget(db(c.env.DB), id)
+        await deleteBudget(db(c.env.DB), user_id, budget_id)
 
         return c.body(null, 204)
     })

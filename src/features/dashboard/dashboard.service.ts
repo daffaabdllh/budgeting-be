@@ -9,21 +9,35 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
     // 1. Determine target YYYY-MM (defaults to current month in UTC)
     const targetMonthYear = month_year || new Date().toISOString().substring(0, 7);
 
-    // 2. Fetch active wallets to compute total net worth
-    const activeWallets = await db.select()
-        .from(wallets)
-        .where(and(eq(wallets.user_id, user_id), eq(wallets.is_deleted, false)));
+    // 2. Fetch all required data in parallel to minimize roundtrips
+    const [activeWallets, monthlyTx, activeBudgets, activeReminders] = await Promise.all([
+        db.select()
+            .from(wallets)
+            .where(and(eq(wallets.user_id, user_id), eq(wallets.is_deleted, false))),
+        db.select()
+            .from(transactions)
+            .where(and(
+                eq(transactions.user_id, user_id),
+                eq(transactions.is_deleted, false),
+                like(transactions.transaction_date, `${targetMonthYear}-%`)
+            )),
+        db.select()
+            .from(budgets)
+            .where(and(
+                eq(budgets.user_id, user_id),
+                eq(budgets.month_year, targetMonthYear),
+                eq(budgets.is_deleted, false)
+            )),
+        db.select()
+            .from(recurringReminders)
+            .where(and(
+                eq(recurringReminders.user_id, user_id),
+                eq(recurringReminders.is_active, true),
+                eq(recurringReminders.is_deleted, false)
+            ))
+    ]);
 
     const totalNetWorth = activeWallets.reduce((acc, w) => acc + (Number(w.balance) || 0), 0);
-
-    // 3. Fetch active transactions for the specified month
-    const monthlyTx = await db.select()
-        .from(transactions)
-        .where(and(
-            eq(transactions.user_id, user_id),
-            eq(transactions.is_deleted, false),
-            like(transactions.transaction_date, `${targetMonthYear}-%`)
-        ));
 
     let income = 0;
     let expense = 0;
@@ -35,15 +49,6 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
         }
     });
     const savings = income - expense;
-
-    // 4. Fetch budgets for the target month and compute utilization
-    const activeBudgets = await db.select()
-        .from(budgets)
-        .where(and(
-            eq(budgets.user_id, user_id),
-            eq(budgets.month_year, targetMonthYear),
-            eq(budgets.is_deleted, false)
-        ));
 
     const spentMap: Record<string, number> = {};
     monthlyTx.forEach((tx) => {
@@ -84,15 +89,6 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
             spent
         };
     });
-
-    // 6. Fetch active recurring reminders for upcoming bills
-    const activeReminders = await db.select()
-        .from(recurringReminders)
-        .where(and(
-            eq(recurringReminders.user_id, user_id),
-            eq(recurringReminders.is_active, true),
-            eq(recurringReminders.is_deleted, false)
-        ));
 
     const upcomingReminders = activeReminders.map((r) => {
         const dueDate = `${targetMonthYear}-${String(r.day_of_month).padStart(2, "0")}`;

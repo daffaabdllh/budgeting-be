@@ -19,6 +19,7 @@ export const wallets = sqliteTable("wallets", {
     return {
         idxUniqueUserWalletName: uniqueIndex("idx_unique_user_wallet_name").on(sql`${table.name} COLLATE NOCASE`, table.user_id),
         idxWalletIsDeleted: index("idx_wallet_is_deleted").on(table.is_deleted),
+        idxWalletUserId: index("idx_wallet_user_id").on(table.user_id),
     }
 });
 

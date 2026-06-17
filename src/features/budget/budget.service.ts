@@ -42,14 +42,23 @@ export const getAllBudgets = async (
     return result
 }
 
-export const updateBudget = async (db: DrizzleD1, budget_id: string, data: BudgetInputType) => {
-    const result = await updateRecord(db, budgets, eq(budgets.id, budget_id), data)
-    if (!result) throw new HTTPException(400, { message: "Failed update budget." })
+export const updateBudget = async (db: DrizzleD1, user_id: string, budget_id: string, data: BudgetInputType) => {
+    const result = await updateRecord(
+        db,
+        budgets,
+        and(eq(budgets.id, budget_id), eq(budgets.user_id, user_id), eq(budgets.is_deleted, false))!,
+        data
+    );
+    if (!result) throw new HTTPException(404, { message: "Budget category not found or access denied." });
 
-    return result
-}
+    return result;
+};
 
-export const deleteBudget = async (db: DrizzleD1, budget_id: string) => {
-    const result = await deleteRecord(db, budgets, and(eq(budgets.id, budget_id), eq(budgets.is_deleted, false))!)
-    if (!result) throw new HTTPException(400, { message: "Failed delete budget." })
-}
+export const deleteBudget = async (db: DrizzleD1, user_id: string, budget_id: string) => {
+    const result = await deleteRecord(
+        db,
+        budgets,
+        and(eq(budgets.id, budget_id), eq(budgets.user_id, user_id), eq(budgets.is_deleted, false))!
+    );
+    if (!result) throw new HTTPException(404, { message: "Budget category not found or access denied." });
+};

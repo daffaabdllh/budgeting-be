@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db as connectDb } from "../src/config/db";
 import { wallets } from "../src/features/wallet/wallet.table";
 import { transactions } from "../src/features/transaction/transaction.table";
-import { createTransfer, deleteTransaction, updateTransaction, getAllTransactions } from "../src/features/transaction/transaction.service";
+import { createTransaction, createTransfer, deleteTransaction, updateTransaction, getAllTransactions } from "../src/features/transaction/transaction.service";
 
 import sql0 from "../src/database/migrations/0000_hard_outlaw_kid.sql?raw";
 import sql1 from "../src/database/migrations/0001_shocking_sage.sql?raw";
@@ -14,9 +14,11 @@ import sql5 from "../src/database/migrations/0005_familiar_magdalene.sql?raw";
 import sql6 from "../src/database/migrations/0006_lucky_black_tom.sql?raw";
 import sql7 from "../src/database/migrations/0007_melted_tinkerer.sql?raw";
 import sql8 from "../src/database/migrations/0008_unique_lord_hawal.sql?raw";
+import sql9 from "../src/database/migrations/0009_lonely_morph.sql?raw";
+import sql10 from "../src/database/migrations/0010_wild_gambit.sql?raw";
 
 const applyMigrations = async (d1: D1Database) => {
-    const migrations = [sql0, sql1, sql2, sql3, sql4, sql5, sql6, sql7, sql8];
+    const migrations = [sql0, sql1, sql2, sql3, sql4, sql5, sql6, sql7, sql8, sql9, sql10];
     for (const sql of migrations) {
         const statements = sql.split("--> statement-breakpoint");
         for (const statement of statements) {
@@ -59,7 +61,6 @@ describe("Wallet Transfer Unit Tests", () => {
             source_wallet_id: "w1",
             destination_wallet_id: "w2",
             amount: 3000,
-            description: "Gas money",
             transaction_date: "2026-06-17"
         });
 
@@ -86,9 +87,50 @@ describe("Wallet Transfer Unit Tests", () => {
             source_wallet_id: "w1",
             destination_wallet_id: "w2",
             amount: 15000, // exceeds Wallet A balance (10000)
-            description: "Too expensive",
             transaction_date: "2026-06-17"
         })).rejects.toThrow("Insufficient balance in source wallet.");
+    });
+
+    it("should fail transfer if source and destination wallets are the same", async () => {
+        await expect(createTransfer(db, "user1", {
+            source_wallet_id: "w1",
+            destination_wallet_id: "w1",
+            amount: 1000,
+            transaction_date: "2026-06-17"
+        })).rejects.toThrow("Source wallet and destination wallet must be different.");
+    });
+
+    it("should fail transaction creation if wallet balance is insufficient for OUT transaction", async () => {
+        await expect(createTransaction(db, "user1", {
+            wallet_id: "w1",
+            budget_id: null,
+            type: "OUT",
+            description: "Expense",
+            amount: 15000, // exceeds Wallet A balance (10000)
+            transaction_date: "2026-06-17"
+        })).rejects.toThrow("Insufficient balance in wallet.");
+    });
+
+    it("should fail transaction update if wallet balance is insufficient for OUT transaction", async () => {
+        // Create an initial transaction (OUT of 3000, leaving 7000 in w1)
+        const tx = await createTransaction(db, "user1", {
+            wallet_id: "w1",
+            budget_id: null,
+            type: "OUT",
+            description: "Expense",
+            amount: 3000,
+            transaction_date: "2026-06-17"
+        });
+
+        // Updating it to 12000 (exceeds total starting balance of 10000) must reject
+        await expect(updateTransaction(db, "user1", tx.id, {
+            wallet_id: "w1",
+            budget_id: null,
+            type: "OUT",
+            description: "Expense modified",
+            amount: 12000,
+            transaction_date: "2026-06-17"
+        })).rejects.toThrow("Insufficient balance in wallet.");
     });
 
     it("should delete both sides of a transfer and revert balances", async () => {
@@ -97,7 +139,6 @@ describe("Wallet Transfer Unit Tests", () => {
             source_wallet_id: "w1",
             destination_wallet_id: "w2",
             amount: 3000,
-            description: "Gas money",
             transaction_date: "2026-06-17"
         });
 
@@ -119,12 +160,11 @@ describe("Wallet Transfer Unit Tests", () => {
         expect(Number(walletBResult[0].balance)).toBe(2000);
     });
 
-    it("should block updating wallet or amount on a transfer transaction", async () => {
+    it("should block updating wallet, amount, type, or budget on a transfer transaction", async () => {
         const result = await createTransfer(db, "user1", {
             source_wallet_id: "w1",
             destination_wallet_id: "w2",
             amount: 3000,
-            description: "Gas money",
             transaction_date: "2026-06-17"
         });
 
@@ -133,10 +173,30 @@ describe("Wallet Transfer Unit Tests", () => {
             wallet_id: "w1",
             budget_id: null,
             type: "OUT",
-            description: "Gas money modified",
+            description: "Transfer of Funds",
             amount: 4000, // modified
             transaction_date: "2026-06-17"
-        })).rejects.toThrow("Cannot modify amount or wallet of a transfer transaction");
+        })).rejects.toThrow("Cannot modify amount, wallet, or type of a transfer transaction");
+
+        // Attempting to change type must reject
+        await expect(updateTransaction(db, "user1", result.outTx.id, {
+            wallet_id: "w1",
+            budget_id: null,
+            type: "IN", // modified type from OUT to IN
+            description: "Transfer of Funds",
+            amount: 3000,
+            transaction_date: "2026-06-17"
+        })).rejects.toThrow("Cannot modify amount, wallet, or type of a transfer transaction");
+
+        // Attempting to assign a budget category must reject
+        await expect(updateTransaction(db, "user1", result.outTx.id, {
+            wallet_id: "w1",
+            budget_id: "b1", // modified from null to "b1"
+            type: "OUT",
+            description: "Transfer of Funds",
+            amount: 3000,
+            transaction_date: "2026-06-17"
+        })).rejects.toThrow("Transfer transactions cannot be assigned to a budget category");
     });
 
     it("should synchronize description and date updates to both sides of a transfer", async () => {
@@ -144,7 +204,6 @@ describe("Wallet Transfer Unit Tests", () => {
             source_wallet_id: "w1",
             destination_wallet_id: "w2",
             amount: 3000,
-            description: "Gas money",
             transaction_date: "2026-06-17"
         });
 
@@ -160,7 +219,7 @@ describe("Wallet Transfer Unit Tests", () => {
 
         // Verify the IN transaction is updated as well
         const inTxResult = await db.select().from(transactions).where(eq(transactions.id, result.inTx.id)).limit(1);
-        expect(inTxResult[0].description).toBe("Uber ride");
+        expect(inTxResult[0].description).toBe("Transfer of Funds");
         expect(inTxResult[0].transaction_date).toBe("2026-06-18");
     });
 
@@ -169,7 +228,6 @@ describe("Wallet Transfer Unit Tests", () => {
             source_wallet_id: "w1",
             destination_wallet_id: "w2",
             amount: 3000,
-            description: "Gas money",
             transaction_date: "2026-06-17"
         });
 
@@ -214,7 +272,6 @@ describe("Wallet Transfer Unit Tests", () => {
             source_wallet_id: "w1",
             destination_wallet_id: "w2",
             amount: 1000,
-            description: "Pocket money",
             transaction_date: "2026-06-17"
         });
 

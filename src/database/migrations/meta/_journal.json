@@ -64,6 +64,20 @@
       "when": 1781701901419,
       "tag": "0008_unique_lord_hawal",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1781706329713,
+      "tag": "0009_lonely_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1781707017194,
+      "tag": "0010_wild_gambit",
+      "breakpoints": true
     }
   ]
 }

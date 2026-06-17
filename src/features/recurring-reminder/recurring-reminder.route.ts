@@ -27,13 +27,15 @@ export const recurringReminderRoutes = new Hono<AppEnv>()
     .put("/recurring-reminders/:id", zValidator("json", recurringReminderSchema), async (c) => {
         const body = c.req.valid("json")
         const recurring_reminder_id = c.req.param("id")
+        const { id: user_id } = c.get("user")
 
-        const result = await updateRecurringReminder(db(c.env.DB), recurring_reminder_id, body)
+        const result = await updateRecurringReminder(db(c.env.DB), user_id, recurring_reminder_id, body)
         return c.api.success(result, "Success update recurring reminder.", 200)
     })
     .delete("/recurring-reminders/:id", async (c) => {
         const recurring_reminder_id = c.req.param("id")
+        const { id: user_id } = c.get("user")
 
-        await deleteRecurringReminder(db(c.env.DB), recurring_reminder_id)
+        await deleteRecurringReminder(db(c.env.DB), user_id, recurring_reminder_id)
         return c.body(null, 204)
     })

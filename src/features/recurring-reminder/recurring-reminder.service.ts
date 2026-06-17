@@ -30,14 +30,23 @@ export const getAllRecurringReminders = async (db: DrizzleD1, user_id: string, s
     return result
 }
 
-export const updateRecurringReminder = async (db: DrizzleD1, recurring_reminder_id: string, data: RecurringReminderInputType) => {
-    const result = await updateRecord(db, recurringReminders, eq(recurringReminders.id, recurring_reminder_id), data)
-    if (!result) throw new HTTPException(400, { message: "Failed update recurring reminder." })
+export const updateRecurringReminder = async (db: DrizzleD1, user_id: string, recurring_reminder_id: string, data: RecurringReminderInputType) => {
+    const result = await updateRecord(
+        db,
+        recurringReminders,
+        and(eq(recurringReminders.id, recurring_reminder_id), eq(recurringReminders.user_id, user_id), eq(recurringReminders.is_deleted, false))!,
+        data
+    );
+    if (!result) throw new HTTPException(404, { message: "Recurring reminder not found or access denied." });
 
-    return result
-}
+    return result;
+};
 
-export const deleteRecurringReminder = async (db: DrizzleD1, recurring_reminder_id: string) => {
-    const result = await deleteRecord(db, recurringReminders, and(eq(recurringReminders.id, recurring_reminder_id), eq(recurringReminders.is_deleted, false))!)
-    if (!result) throw new HTTPException(400, { message: "Failed delete recurring reminder." })
-}
+export const deleteRecurringReminder = async (db: DrizzleD1, user_id: string, recurring_reminder_id: string) => {
+    const result = await deleteRecord(
+        db,
+        recurringReminders,
+        and(eq(recurringReminders.id, recurring_reminder_id), eq(recurringReminders.user_id, user_id), eq(recurringReminders.is_deleted, false))!
+    );
+    if (!result) throw new HTTPException(404, { message: "Recurring reminder not found or access denied." });
+};

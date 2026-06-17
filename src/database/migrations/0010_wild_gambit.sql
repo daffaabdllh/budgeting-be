@@ -1,0 +1,1 @@
+CREATE INDEX `idx_wallet_user_id` ON `wallets` (`user_id`);

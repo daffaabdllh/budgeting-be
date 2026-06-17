@@ -4,8 +4,18 @@ import { apiMiddleware } from "./middleware/api/api.middleware";
 import { apiOnError } from "./middleware/api/api.onError";
 import { apiNotFound } from "./middleware/api/api.notFound";
 import { router } from "./router";
+import { cors } from "hono/cors";
 
 const app = new Hono<AppEnv>()
+	.use("*", cors({
+		origin: (origin, c) => {
+			const allowedOrigins = [c.env.FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"];
+			return allowedOrigins.includes(origin) ? origin : c.env.FRONTEND_URL;
+		},
+		credentials: true,
+		allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		allowHeaders: ["Content-Type", "Authorization"],
+	}))
 	.use(apiMiddleware)
 	.onError(apiOnError)
 	.notFound(apiNotFound)

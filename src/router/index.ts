@@ -3,6 +3,7 @@ import { recurringReminderRoutes } from "../features/recurring-reminder/recurrin
 import { walletRoutes } from "../features/wallet/wallet.route";
 import { budgetRoutes } from "../features/budget/budget.route";
 import { transactionRoutes } from "../features/transaction/transaction.route";
+import { dashboardRoutes } from "../features/dashboard/dashboard.route";
 
 export const router = [
     {
@@ -24,5 +25,9 @@ export const router = [
     {
         path: "/",
         handler: transactionRoutes
+    },
+    {
+        path: "/",
+        handler: dashboardRoutes
     }
 ]

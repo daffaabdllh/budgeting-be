@@ -19,11 +19,9 @@ export const walletRoutes = new Hono<AppEnv>()
     })
     .get("/wallets", async (c) => {
         const { id } = c.get("user")
-        const page = Math.max(1, parseInt(c.req.query("page") || "1", 10));
-        const limit = Math.max(1, Math.min(100, parseInt(c.req.query("limit") || "10", 10)));
 
-        const { data, pagination } = await getAllWallets(db(c.env.DB), id, limit, page)
-        return c.api.success(data, "Success get all wallets.", 200, pagination)
+        const data = await getAllWallets(db(c.env.DB), id)
+        return c.api.success(data, "Success get all wallets.", 200)
     })
     .put("/wallets/:id", zValidator("json", walletSchema), async (c) => {
         const body = c.req.valid("json")

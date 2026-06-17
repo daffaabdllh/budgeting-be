@@ -18,10 +18,18 @@ export const budgetRoutes = new Hono<AppEnv>()
         return c.api.success(result, "Success create new budget.", 201)
     })
     .get("/budgets", async (c) => {
-        const { page, limit } = c.req.query()
+        const { page, limit, month_year } = c.req.query()
         const { id } = c.get("user")
 
-        const { data, pagination } = await getAllBudgets(db(c.env.DB), id, Number(page), Number(limit))
+        if (month_year && !/^\d{4}-\d{2}$/.test(month_year)) {
+            return c.api.error("Invalid month year format. Use YYYY-MM.", 400);
+        }
+
+        const { data, pagination } = await getAllBudgets(db(c.env.DB), id, {
+            page: page ? Number(page) : undefined,
+            limit: limit ? Number(limit) : undefined,
+            month_year
+        })
 
         return c.api.success(data, "Success get all budgets.", 200, pagination)
     })

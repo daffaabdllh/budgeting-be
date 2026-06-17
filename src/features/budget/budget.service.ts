@@ -3,7 +3,7 @@ import { DrizzleD1 } from "../../config/db";
 import { deleteRecord, findManyWithIdPagination, insertRecord, updateRecord } from "../../lib/drizzle.d1";
 import { BudgetInputType } from "./budget.schema";
 import { budgets } from "./budget.table";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 
 export const createBudget = async (db: DrizzleD1, user_id: string, data: BudgetInputType) => {
     const result = await insertRecord(db, budgets, { ...data, user_id })
@@ -12,12 +12,25 @@ export const createBudget = async (db: DrizzleD1, user_id: string, data: BudgetI
     return result
 }
 
-export const getAllBudgets = async (db: DrizzleD1, user_id: string, page?: number, limit?: number) => {
+export const getAllBudgets = async (
+    db: DrizzleD1,
+    user_id: string,
+    options: { page?: number; limit?: number; month_year?: string; }
+) => {
+    let whereClause = and(
+        eq(budgets.user_id, user_id),
+        eq(budgets.is_deleted, false)
+    );
+
+    if (options.month_year) {
+        whereClause = and(whereClause, eq(budgets.month_year, options.month_year));
+    }
+
     const result = await findManyWithIdPagination(
         db,
         budgets,
-        and(eq(budgets.user_id, user_id), eq(budgets.is_deleted, false)),
-        { page, limit },
+        whereClause,
+        { page: options.page, limit: options.limit },
         async (currentIds) => {
             return await db
                 .select()

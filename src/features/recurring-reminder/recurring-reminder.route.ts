@@ -18,13 +18,11 @@ export const recurringReminderRoutes = new Hono<AppEnv>()
     })
     .get("/recurring-reminders", async (c) => {
         const { id } = c.get("user")
-        const page = Math.max(1, parseInt(c.req.query("page") || "1", 10));
-        const limit = Math.max(1, Math.min(100, parseInt(c.req.query("limit") || "10", 10)));
         const search = c.req.query("search")
 
-        const { data, pagination } = await getAllRecurringReminders(db(c.env.DB), id, page, limit, search)
+        const data = await getAllRecurringReminders(db(c.env.DB), id, search)
 
-        return c.api.success(data, "Success get all recurring reminders.", 200, pagination)
+        return c.api.success(data, "Success get all recurring reminders.", 200)
     })
     .put("/recurring-reminders/:id", zValidator("json", recurringReminderSchema), async (c) => {
         const body = c.req.valid("json")

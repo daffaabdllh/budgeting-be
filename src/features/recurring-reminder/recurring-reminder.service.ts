@@ -1,9 +1,9 @@
 import { HTTPException } from "hono/http-exception";
 import { DrizzleD1 } from "../../config/db";
-import { deleteRecord, findManyWithIdPagination, insertRecord, updateRecord } from "../../lib/drizzle.d1";
+import { deleteRecord, insertRecord, updateRecord } from "../../lib/drizzle.d1";
 import { RecurringReminderInputType } from "./recurring-reminder.schema";
 import { recurringReminders } from "./recurring-reminder.table";
-import { and, eq, inArray, like, SQL } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 
 export const createRecurringReminder = async (db: DrizzleD1, user_id: string, data: RecurringReminderInputType) => {
     const result = await insertRecord(db, recurringReminders, { ...data, user_id })
@@ -12,7 +12,7 @@ export const createRecurringReminder = async (db: DrizzleD1, user_id: string, da
     return result
 }
 
-export const getAllRecurringReminders = async (db: DrizzleD1, user_id: string, page?: number, limit?: number, search?: string) => {
+export const getAllRecurringReminders = async (db: DrizzleD1, user_id: string, search?: string) => {
     let where = and(
         eq(recurringReminders.user_id, user_id),
         eq(recurringReminders.is_deleted, false)
@@ -22,18 +22,10 @@ export const getAllRecurringReminders = async (db: DrizzleD1, user_id: string, p
         where = and(where, like(recurringReminders.description, `%${search}%`))
     }
 
-    const result = await findManyWithIdPagination(
-        db,
-        recurringReminders,
-        where,
-        { page, limit },
-        async (currentPageIds) => {
-            return await db
-                .select()
-                .from(recurringReminders)
-                .where(inArray(recurringReminders.id, currentPageIds))
-        }
-    )
+    const result = await db
+        .select()
+        .from(recurringReminders)
+        .where(where)
 
     return result
 }

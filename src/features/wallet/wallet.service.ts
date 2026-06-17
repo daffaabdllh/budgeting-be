@@ -1,9 +1,9 @@
 import { HTTPException } from "hono/http-exception";
 import { DrizzleD1 } from "../../config/db";
-import { findManyWithIdPagination, insertRecord, updateRecord, deleteRecord } from "../../lib/drizzle.d1";
+import { insertRecord, updateRecord, deleteRecord } from "../../lib/drizzle.d1";
 import { WalletInputType } from "./wallet.schema";
 import { wallets } from "./wallet.table";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export const createWallet = async (db: DrizzleD1, user_id: string, data: WalletInputType) => {
     const result = await insertRecord(db, wallets, { ...data, user_id })
@@ -12,19 +12,11 @@ export const createWallet = async (db: DrizzleD1, user_id: string, data: WalletI
     return result
 }
 
-export const getAllWallets = async (db: DrizzleD1, user_id: string, limit?: number, page?: number) => {
-    const result = await findManyWithIdPagination(
-        db,
-        wallets,
-        and(eq(wallets.user_id, user_id), eq(wallets.is_deleted, false)),
-        { page, limit },
-        async (currentPageIds) => {
-            return await db
-                .select()
-                .from(wallets)
-                .where(inArray(wallets.id, currentPageIds))
-        }
-    )
+export const getAllWallets = async (db: DrizzleD1, user_id: string) => {
+    const result = await db
+        .select()
+        .from(wallets)
+        .where(and(eq(wallets.user_id, user_id), eq(wallets.is_deleted, false)))
 
     return result
 }

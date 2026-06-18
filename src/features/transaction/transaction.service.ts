@@ -5,8 +5,10 @@ import { TransactionInputType, TransferInputType } from "./transaction.schema";
 import { transactions } from "./transaction.table";
 import { wallets } from "../wallet/wallet.table";
 import { budgets } from "../budget/budget.table";
-import { and, eq, inArray, like, isNull, isNotNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, like, lte, isNull, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import { users } from "../user/user.table";
+import { getCycleDateRange } from "../../lib/date";
 
 const linkedTransactions = alias(transactions, "linked_transactions");
 const linkedWallets = alias(wallets, "linked_wallets");
@@ -85,7 +87,14 @@ export const getAllTransactions = async (
         whereClause = and(whereClause, like(transactions.description, `%${options.search}%`));
     }
     if (options.year_month) {
-        whereClause = and(whereClause, like(transactions.transaction_date, `${options.year_month}-%`));
+        const userResult = await db.select({ salary_day: users.salary_day }).from(users).where(eq(users.id, user_id)).limit(1);
+        const salaryDay = userResult[0]?.salary_day ?? 1;
+        const { startDate, endDate } = getCycleDateRange(options.year_month, salaryDay);
+        whereClause = and(
+            whereClause,
+            gte(transactions.transaction_date, startDate),
+            lte(transactions.transaction_date, endDate)
+        );
     }
 
     const result = await findManyWithIdPagination(

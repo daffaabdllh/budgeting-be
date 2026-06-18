@@ -35,3 +35,9 @@ export const resetPasswordSchema = z.object({
 
 export type ForgotPasswordInputType = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInputType = z.infer<typeof resetPasswordSchema>;
+
+export const salaryDaySchema = z.object({
+    salary_day: z.number().int().min(1).max(31, "Salary day must be between 1 and 31")
+});
+
+export type SalaryDayInputType = z.infer<typeof salaryDaySchema>;

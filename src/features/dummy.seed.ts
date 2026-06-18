@@ -18,8 +18,8 @@ const sqlContent = `
 -- Seeder Data Dummy
 
 -- 1. Insert User (Password: password123)
-INSERT OR REPLACE INTO users (id, name, email, phone_number, password, created_at)
-VALUES ('${userId}', 'Daffa', 'daffa@example.com', '081234567890', '${passwordHash}', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+INSERT OR REPLACE INTO users (id, name, email, phone_number, password, salary_day, created_at)
+VALUES ('${userId}', 'Daffa', 'daffa@example.com', '081234567890', '${passwordHash}', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 
 -- 2. Insert Wallets (Adjust balance based on transaction balance sheet)
 -- Initial balances + IN transactions - OUT transactions

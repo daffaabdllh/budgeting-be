@@ -27,6 +27,7 @@ export const getUserLogin = async (db: DrizzleD1, data: LoginInputType) => {
             name: users.name,
             email: users.email,
             phone_number: users.phone_number,
+            salary_day: users.salary_day,
             password: users.password
         },
         eq(users.email, data.email)
@@ -110,4 +111,15 @@ export const resetUserPassword = async (db: DrizzleD1, data: ResetPasswordInputT
     await db.delete(passwordResets).where(eq(passwordResets.token, data.token));
 
     return { email: resetRecord.email };
+};
+
+export const updateSalaryDay = async (db: DrizzleD1, user_id: string, salary_day: number) => {
+    const result = await db.update(users)
+        .set({ salary_day })
+        .where(eq(users.id, user_id))
+        .returning();
+    if (!result[0]) throw new HTTPException(404, { message: "User not found." });
+    
+    const { password, ...rest } = result[0];
+    return { salary_day: rest.salary_day };
 };

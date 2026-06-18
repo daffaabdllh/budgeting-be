@@ -10,6 +10,7 @@ export type AuthUser = {
     name: string;
     email: string;
     phone_number: string;
+    salary_day?: number;
 };
 
 declare module "hono" {
@@ -59,7 +60,8 @@ export const isLoggedIn: MiddlewareHandler<AppEnv> = async (c, next) => {
             id: decodedPayload.id,
             name: decodedPayload.name,
             email: decodedPayload.email,
-            phone_number: decodedPayload.phone_number
+            phone_number: decodedPayload.phone_number,
+            salary_day: decodedPayload.salary_day
         };
 
         // Sign new access token
@@ -88,7 +90,8 @@ export const isLoggedIn: MiddlewareHandler<AppEnv> = async (c, next) => {
         id: decodedPayload.id,
         name: decodedPayload.name,
         email: decodedPayload.email,
-        phone_number: decodedPayload.phone_number
+        phone_number: decodedPayload.phone_number,
+        salary_day: decodedPayload.salary_day
     };
 
     c.set("user", userPayload);

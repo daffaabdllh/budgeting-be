@@ -13,7 +13,8 @@ export interface CustomResponseHelpers {
         data: T,
         message?: string,
         statusCode?: StatusCode,
-        pagination?: PaginationMetadata
+        pagination?: PaginationMetadata,
+        meta?: any
     ) => Response;
 
     error: (message?: string, statusCode?: StatusCode) => Response;
@@ -31,13 +32,15 @@ export function getResponseHelpers(c: Context): CustomResponseHelpers {
             data: T,
             message = "Operasi berhasil",
             statusCode = 200,
-            pagination?: PaginationMetadata
+            pagination?: PaginationMetadata,
+            meta?: any
         ) => {
             const body: SuccessResponse<T> = {
                 status: "success",
                 data,
                 message,
                 ...(pagination ? { pagination } : {}),
+                ...(meta ? { meta } : {}),
             };
             c.status(statusCode as StatusCode);
             return c.json(body);

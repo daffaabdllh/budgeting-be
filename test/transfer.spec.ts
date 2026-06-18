@@ -4,6 +4,7 @@ import { db as connectDb } from "../src/config/db";
 import { wallets } from "../src/features/wallet/wallet.table";
 import { transactions } from "../src/features/transaction/transaction.table";
 import { createTransaction, createTransfer, deleteTransaction, updateTransaction, getAllTransactions } from "../src/features/transaction/transaction.service";
+import { users } from "../src/features/user/user.table";
 
 import sql0 from "../src/database/migrations/0000_hard_outlaw_kid.sql?raw";
 import sql1 from "../src/database/migrations/0001_shocking_sage.sql?raw";
@@ -17,9 +18,10 @@ import sql8 from "../src/database/migrations/0008_unique_lord_hawal.sql?raw";
 import sql9 from "../src/database/migrations/0009_lonely_morph.sql?raw";
 import sql10 from "../src/database/migrations/0010_wild_gambit.sql?raw";
 import sql12 from "../src/database/migrations/0012_add_last_notified_month_year.sql?raw";
+import sql13 from "../src/database/migrations/0013_add_user_salary_day.sql?raw";
 
 const applyMigrations = async (d1: D1Database) => {
-    const migrations = [sql0, sql1, sql2, sql3, sql4, sql5, sql6, sql7, sql8, sql9, sql10, sql12];
+    const migrations = [sql0, sql1, sql2, sql3, sql4, sql5, sql6, sql7, sql8, sql9, sql10, sql12, sql13];
     for (const sql of migrations) {
         const statements = sql.split("--> statement-breakpoint");
         for (const statement of statements) {
@@ -38,6 +40,16 @@ describe("Wallet Transfer Unit Tests", () => {
     beforeEach(async () => {
         await applyMigrations(env.DB);
         db = connectDb(env.DB);
+
+        // Seed with user1
+        await db.insert(users).values({
+            id: "user1",
+            name: "User One",
+            email: "user1@example.com",
+            phone_number: "0812",
+            password: "hash",
+            salary_day: 1
+        });
 
         // Seed with two wallets for user1
         await db.insert(wallets).values({

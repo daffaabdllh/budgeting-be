@@ -3,11 +3,23 @@ import { wallets } from "../wallet/wallet.table";
 import { transactions } from "../transaction/transaction.table";
 import { budgets } from "../budget/budget.table";
 import { recurringReminders } from "../recurring-reminder/recurring-reminder.table";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, gte, like, lte } from "drizzle-orm";
+import { users } from "../user/user.table";
+import { getCycleDateRange } from "../../lib/date";
 
 export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_year?: string) => {
     // 1. Determine target YYYY-MM (defaults to current month in UTC)
     const targetMonthYear = month_year || new Date().toISOString().substring(0, 7);
+
+    // 1.5. Fetch user's salary_day to compute range
+    const userResult = await db
+        .select({ salary_day: users.salary_day })
+        .from(users)
+        .where(eq(users.id, user_id))
+        .limit(1);
+    const salaryDay = userResult[0]?.salary_day ?? 1;
+
+    const { startDate, endDate } = getCycleDateRange(targetMonthYear, salaryDay);
 
     // 2. Fetch all required data in parallel to minimize roundtrips
     const [activeWallets, monthlyTx, activeBudgets, activeReminders] = await Promise.all([
@@ -19,7 +31,8 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
             .where(and(
                 eq(transactions.user_id, user_id),
                 eq(transactions.is_deleted, false),
-                like(transactions.transaction_date, `${targetMonthYear}-%`)
+                gte(transactions.transaction_date, startDate),
+                lte(transactions.transaction_date, endDate)
             )),
         db.select()
             .from(budgets)
@@ -101,13 +114,16 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
         };
     });
 
+    const totalAllocated = activeBudgets.reduce((acc, b) => acc + b.amount, 0);
+
     return {
         month_year: targetMonthYear,
         total_net_worth: totalNetWorth,
         monthly_cashflow: {
             income,
             expense,
-            savings
+            savings,
+            unallocated_amount: income - totalAllocated
         },
         budget_summary: budgetSummary,
         expense_by_wallet: expenseByWallet,

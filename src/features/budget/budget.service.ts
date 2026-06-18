@@ -3,7 +3,10 @@ import { DrizzleD1 } from "../../config/db";
 import { deleteRecord, findManyWithIdPagination, insertRecord, updateRecord } from "../../lib/drizzle.d1";
 import { BudgetInputType } from "./budget.schema";
 import { budgets } from "./budget.table";
-import { and, eq, inArray, like } from "drizzle-orm";
+import { and, eq, gte, inArray, like, lte, sql } from "drizzle-orm";
+import { transactions } from "../transaction/transaction.table";
+import { users } from "../user/user.table";
+import { getCycleDateRange } from "../../lib/date";
 
 export const createBudget = async (db: DrizzleD1, user_id: string, data: BudgetInputType) => {
     const result = await insertRecord(db, budgets, { ...data, user_id })
@@ -17,6 +20,52 @@ export const getAllBudgets = async (
     user_id: string,
     options: { page?: number; limit?: number; month_year?: string; }
 ) => {
+    const monthYear = options.month_year || new Date().toISOString().substring(0, 7);
+
+    // 0. Load user's salary_day to compute the cycle rentang tanggal
+    const userResult = await db
+        .select({ salary_day: users.salary_day })
+        .from(users)
+        .where(eq(users.id, user_id))
+        .limit(1);
+    const salaryDay = userResult[0]?.salary_day ?? 1;
+
+    const { startDate, endDate } = getCycleDateRange(monthYear, salaryDay);
+
+    // 1. Calculate total income in this cycle (from IN transactions within cycle dates)
+    const incomeResult = await db
+        .select({
+            total: sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS REAL)`
+        })
+        .from(transactions)
+        .where(
+            and(
+                eq(transactions.user_id, user_id),
+                eq(transactions.is_deleted, false),
+                eq(transactions.type, "IN"),
+                gte(transactions.transaction_date, startDate),
+                lte(transactions.transaction_date, endDate)
+            )
+        );
+    const totalIncome = Number(incomeResult[0]?.total) || 0;
+
+    // 2. Calculate total allocated in monthYear (sum of all budgets in monthYear)
+    const allocatedResult = await db
+        .select({
+            total: sql<number>`CAST(COALESCE(SUM(${budgets.amount}), 0) AS REAL)`
+        })
+        .from(budgets)
+        .where(
+            and(
+                eq(budgets.user_id, user_id),
+                eq(budgets.is_deleted, false),
+                eq(budgets.month_year, monthYear)
+            )
+        );
+    const totalAllocated = Number(allocatedResult[0]?.total) || 0;
+
+    const unallocatedAmount = totalIncome - totalAllocated;
+
     let whereClause = and(
         eq(budgets.user_id, user_id),
         eq(budgets.is_deleted, false)
@@ -26,20 +75,56 @@ export const getAllBudgets = async (
         whereClause = and(whereClause, eq(budgets.month_year, options.month_year));
     }
 
-    const result = await findManyWithIdPagination(
+    const paginatedResult = await findManyWithIdPagination(
         db,
         budgets,
         whereClause,
         { page: options.page, limit: options.limit },
         async (currentIds) => {
             return await db
-                .select()
+                .select({
+                    id: budgets.id,
+                    user_id: budgets.user_id,
+                    category: budgets.category,
+                    amount: budgets.amount,
+                    month_year: budgets.month_year,
+                    is_deleted: budgets.is_deleted,
+                    created_at: budgets.created_at,
+                    updated_at: budgets.updated_at,
+                    spent: sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS REAL)`
+                })
                 .from(budgets)
+                .leftJoin(
+                    transactions,
+                    and(
+                        eq(budgets.id, transactions.budget_id),
+                        eq(transactions.is_deleted, false),
+                        eq(transactions.type, "OUT"),
+                        gte(transactions.transaction_date, startDate),
+                        lte(transactions.transaction_date, endDate)
+                    )
+                )
                 .where(inArray(budgets.id, currentIds))
+                .groupBy(budgets.id);
         }
-    )
+    );
 
-    return result
+    const formattedData = paginatedResult.data.map((row: any) => ({
+        ...row,
+        spent: Number(row.spent) || 0,
+        remaining: (row.amount || 0) - (Number(row.spent) || 0)
+    }));
+
+    return {
+        data: formattedData,
+        summary: {
+            month_year: monthYear,
+            total_income: totalIncome,
+            total_allocated: totalAllocated,
+            unallocated_amount: unallocatedAmount
+        },
+        pagination: paginatedResult.pagination
+    };
 }
 
 export const updateBudget = async (db: DrizzleD1, user_id: string, budget_id: string, data: BudgetInputType) => {

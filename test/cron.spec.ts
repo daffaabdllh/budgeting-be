@@ -20,9 +20,10 @@ import sql8 from "../src/database/migrations/0008_unique_lord_hawal.sql?raw";
 import sql9 from "../src/database/migrations/0009_lonely_morph.sql?raw";
 import sql10 from "../src/database/migrations/0010_wild_gambit.sql?raw";
 import sql12 from "../src/database/migrations/0012_add_last_notified_month_year.sql?raw";
+import sql13 from "../src/database/migrations/0013_add_user_salary_day.sql?raw";
 
 const applyMigrations = async (d1: D1Database) => {
-    const migrations = [sql0, sql1, sql2, sql3, sql4, sql5, sql6, sql7, sql8, sql9, sql10, sql12];
+    const migrations = [sql0, sql1, sql2, sql3, sql4, sql5, sql6, sql7, sql8, sql9, sql10, sql12, sql13];
     for (const sqlStr of migrations) {
         const statements = sqlStr.split("--> statement-breakpoint");
         for (const statement of statements) {

@@ -17,6 +17,7 @@ export interface SuccessResponse<T> {
   data: T;
   message?: string;
   pagination?: PaginationMetadata;
+  meta?: any;
 }
 
 export interface ErrorResponse {

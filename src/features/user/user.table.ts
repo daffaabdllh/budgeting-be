@@ -1,5 +1,5 @@
 // src/database/schema/users.schema.ts
-import { sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
@@ -10,6 +10,7 @@ export const users = sqliteTable("users", {
     email: text("email").notNull(),
     phone_number: text("phone_number").notNull(),
     password: text("password").notNull(),
+    salary_day: integer("salary_day").notNull().default(1),
     created_at: text("created_at")
         .notNull()
         .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),

@@ -25,13 +25,13 @@ export const budgetRoutes = new Hono<AppEnv>()
             return c.api.error("Invalid month year format. Use YYYY-MM.", 400);
         }
 
-        const { data, pagination } = await getAllBudgets(db(c.env.DB), id, {
+        const { data, summary, pagination } = await getAllBudgets(db(c.env.DB), id, {
             page: page ? Number(page) : undefined,
             limit: limit ? Number(limit) : undefined,
             month_year
         })
 
-        return c.api.success(data, "Success get all budgets.", 200, pagination)
+        return c.api.success(data, "Success get all budgets.", 200, pagination, { summary })
     })
     .put("/budgets/:id", zValidator("json", budgetSchema), async (c) => {
         const body = c.req.valid("json")

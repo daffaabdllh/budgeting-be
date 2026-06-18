@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { AppEnv } from "../../config/env";
 import { apiMiddleware } from "../../middleware/api/api.middleware";
 import { zValidator } from "../../middleware/api/api.validationError";
-import { loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from "./auth.schema";
+import { loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema, salaryDaySchema } from "./auth.schema";
 import { db } from "../../config/db"
-import { getUserLogin, register, createPasswordResetToken, resetUserPassword } from "./auth.service";
+import { getUserLogin, register, createPasswordResetToken, resetUserPassword, updateSalaryDay } from "./auth.service";
 import { TokenManager } from "./auth.jwt";
 import { clearAuthCookies, setAuthCookies } from "../../lib/auth.cookie";
 import { sendEmail } from "../../lib/email";
@@ -31,7 +31,8 @@ export const authRoutes = new Hono<AppEnv>()
             id: result.id,
             name: result.name,
             email: result.email,
-            phone_number: result.phone_number
+            phone_number: result.phone_number,
+            salary_day: result.salary_day
         }
 
         const refreshAge = 3600 * 24
@@ -46,6 +47,13 @@ export const authRoutes = new Hono<AppEnv>()
     .get("/userinfo", isLoggedIn, async (c) => {
         const user = c.get("user");
         return c.api.success(user);
+    })
+    .put("/salary-day", isLoggedIn, zValidator("json", salaryDaySchema), async (c) => {
+        const { salary_day } = c.req.valid("json");
+        const { id } = c.get("user");
+
+        const result = await updateSalaryDay(db(c.env.DB), id, salary_day);
+        return c.api.success(result, "Success update salary day.", 200);
     })
     .delete("/logout", isLoggedIn, async (c) => {
         try {

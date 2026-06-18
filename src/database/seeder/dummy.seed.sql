@@ -1,8 +1,8 @@
 -- Seeder Data Dummy
 
 -- 1. Insert User (Password: password123)
-INSERT OR REPLACE INTO users (id, name, email, phone_number, password, created_at)
-VALUES ('user-dummy-id-123', 'Daffa', 'daffa@example.com', '081234567890', '$2b$10$voPnJqsY3FO91OdbvpZ2zO6Mi5ujGTwMcV0TnHlK0XurBZpnzmVjq', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+INSERT OR REPLACE INTO users (id, name, email, phone_number, password, salary_day, created_at)
+VALUES ('user-dummy-id-123', 'Daffa', 'daffa@example.com', '081234567890', '$2b$10$2ZzpcJeCdyvU/irBx1rJEO3UuuK/bvJzaWxEAChLLrnxtrXAPhv3O', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 
 -- 2. Insert Wallets (Adjust balance based on transaction balance sheet)
 -- Initial balances + IN transactions - OUT transactions

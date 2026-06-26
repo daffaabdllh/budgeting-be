@@ -55,6 +55,7 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
     let income = 0;
     let expense = 0;
     monthlyTx.forEach((tx) => {
+        if (tx.linked_transaction_id) return;
         if (tx.type === "IN") {
             income += tx.amount;
         } else if (tx.type === "OUT") {
@@ -91,6 +92,7 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
 
     const walletSpentMap: Record<string, number> = {};
     monthlyTx.forEach((tx) => {
+        if (tx.linked_transaction_id) return;
         if (tx.type === "OUT") {
             walletSpentMap[tx.wallet_id] = (walletSpentMap[tx.wallet_id] || 0) + tx.amount;
         }

@@ -61,7 +61,7 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
             expense += tx.amount;
         }
     });
-    const savings = income - expense;
+    const ending_balance = income - expense;
 
     const spentMap: Record<string, number> = {};
     monthlyTx.forEach((tx) => {
@@ -78,6 +78,7 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
             category: b.category,
             budget: b.amount,
             spent,
+            remaining: b.amount - spent,
             percentage
         };
     });
@@ -115,14 +116,16 @@ export const getDashboardSummary = async (db: DrizzleD1, user_id: string, month_
     });
 
     const totalAllocated = activeBudgets.reduce((acc, b) => acc + b.amount, 0);
+    const difference = totalNetWorth - ending_balance;
 
     return {
         month_year: targetMonthYear,
         total_net_worth: totalNetWorth,
+        difference,
         monthly_cashflow: {
             income,
             expense,
-            savings,
+            ending_balance,
             unallocated_amount: income - totalAllocated
         },
         budget_summary: budgetSummary,
